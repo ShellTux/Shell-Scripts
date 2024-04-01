@@ -1,0 +1,30 @@
+#!/bin/sh
+
+[ -n "$1" ] && BLOCK_BUTTON=$1
+
+case $BLOCK_BUTTON in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		--icon=linux-logo-2 \
+		"Kernel Information" \
+		"Kernel name: $(uname --kernel-name)
+Kernel release: $(uname --kernel-release)
+Kernel version: $(uname --kernel-version)
+Machine Hardware name: $(uname --machine)
+Processor Type: $(uname --processor)
+Hardware platform: $(uname --hardware-platform)
+Operation System: $(uname --operating-system)" ;;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: kernel " \
+		"\- Shows current installed linux kernel release.
+\- <b>Left Click</b>, shows more information about installed kernel.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+printf "[ %s]\n" "$(uname --kernel-release)"

@@ -1,0 +1,30 @@
+#!/bin/sh
+
+shell="$(awk -F : '/'"$(whoami)"'/ {print $7}' /etc/passwd)"
+
+window() {
+	echo "
+	while true
+	do
+		if command -v "$1" &>/dev/null
+		then
+			"$1" "$2"
+		else
+			clear
+			printf '\033[31m%s\033[0m is not installed\n' "$1"
+			read -r _
+		fi
+	done
+	"
+}
+
+tmux new-session -d -s Scratchpad -n Term "$(window $shell)" \; \
+	new-window -n btop "$(window btop)" \; \
+	new-window -n htop "$(window htop)" \; \
+	new-window -n nvtop "$(window nvtop)" \; \
+	new-window -n files "$(window yazi)" \; \
+	new-window -n Calc "$(window qalc)" \; \
+	new-window -n Music "$(window ncmpcpp)" \; \
+	new-window -n Python "$(window bpython)" \; \
+	new-window -n Lua "$(window lua)" \; \
+	select-window -t 1

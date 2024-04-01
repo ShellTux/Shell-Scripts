@@ -1,0 +1,56 @@
+#!/bin/sh
+#
+# Dependencies:
+# 	- net-tools
+
+case $BLOCK_BUTTON in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		"Network Traffic" \
+		"Download (Total): $(cat /sys/class/net/[ew]*/statistics/rx_bytes | \
+		numfmt --to=iec)
+Upload (Total): $(cat /sys/class/net/[ew]*/statistics/tx_bytes | numfmt --to=iec)B
+Download: $(echo \
+	"$(cat /sys/class/net/[ew]*/statistics/rx_bytes)" \
+	" - " \
+	"$(cat "${XDG_CACHE_HOME:-$HOME/.cache}"/rx_bytes)" \
+	| bc | numfmt --to=iec)B
+Upload: $(echo \
+	"$(cat /sys/class/net/[ew]*/statistics/tx_bytes)" \
+	" - " \
+	"$(cat "${XDG_CACHE_HOME:-$HOME/.cache}"/tx_bytes)" \
+	| bc | numfmt --to=iec)B";;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: network-traffic " \
+		"\- Shows download ( B) and Upload ( B).
+\- <b>Left Click</b>, shows more information about network traffic.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	4) scratchpad --title 'Network Traffic' --command 'watch -n 1 netstat -tulpn' & ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+update() {
+	sum=0
+	for arg; do
+		read -r i < "$arg"
+		sum=$(( sum + i ))
+	done
+	cache=${XDG_CACHE_HOME:-$HOME/.cache}/${1##*/}
+	[ -f "$cache" ] && read -r old < "$cache" || old=0
+	printf %d\\n "$sum" > "$cache"
+	printf %d\\n $(( sum - old ))
+}
+rx=$(update /sys/class/net/[ew]*/statistics/rx_bytes)
+tx=$(update /sys/class/net/[ew]*/statistics/tx_bytes)
+printf "[%4sB %4sB]\\n" "$(numfmt --to=iec "$rx")" "$(numfmt --to=iec "$tx")"
+
+unset rx
+unset tx
+unset cache
+unset sum
+unset old

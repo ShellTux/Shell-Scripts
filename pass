@@ -1,0 +1,24 @@
+#!/bin/sh
+
+disable_clipboard=false
+for arg in "$@"
+do
+	[ "$arg" = -c ] || [ "$arg" = --clip ] && disable_clipboard=true
+done
+
+clipmenu_enable() {
+	sleep "${PASSWORD_STORE_CLIP_TIME:-45}"
+	clipctl enable
+	notify-send "Clipmenu" "Clipmenud enabled"
+}
+
+if $disable_clipboard
+then
+	clipctl disable
+
+	/usr/bin/pass "$@"
+
+	clipmenu_enable &
+else
+	/usr/bin/pass "$@"
+fi

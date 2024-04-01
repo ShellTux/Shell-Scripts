@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Dependencies
+# mpc
+
+printf "[%s %s]\n" "" "$(mpc current)"

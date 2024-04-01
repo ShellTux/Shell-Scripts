@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Dependecies
+# libnotify
+
+LC_NUMERIC="en_US.UTF-8"
+usage="$(printf %02.0f "$(free | awk '/^Mem/ { print $3 "/" $2 "*100" }' | bc -l )")"
+
+[ -n "$1" ] && BLOCK_BUTTON="$1"
+
+case $BLOCK_BUTTON in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		--hint="int:value:$usage" \
+		'Memory Usage' "$(ps exc -o cmd,%mem:15 --sort=-%mem | head)";;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: memory " \
+		"\- Shows usage of physical memory RAM.
+\- <b>Left Click</b>, shows top 10 most intensive processes in usage of RAM.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Shift + Left Click</b>, opens htop.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	4) scratchpad --title htop --command "htop";;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+printf "[ $(free -h | awk '/^Mem/ { print $3 "/" $2 }' | sed s/i//g) %s]\n" "$usage%"

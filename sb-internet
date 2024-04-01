@@ -1,0 +1,60 @@
+#!/bin/sh
+
+get_network_info() {
+	case $1 in
+		ipv4)      ip -brief address | awk '/(eno|wlo|wlan)[0-9] *UP/ {print $3}' | cut -d'/' -f1 ;;
+		ipv6)      ip -brief address | awk '/(eno|wlo|wlan)[0-9] *UP/ {print $4}' | cut -d'/' -f1;;
+		interface) ip -brief address | awk '/(eno|wlo|wlan)[0-9] *UP/ {print $1}';;
+	esac
+}
+
+interface="$(get_network_info interface)"
+ipv4_address="$(get_network_info ipv4)"
+
+[ -n "$1" ] && BLOCK_BUTTON=$1
+
+case "$BLOCK_BUTTON" in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		"Network Information" \
+		"Interface: $interface
+IPv4 Address: $ipv4_address";;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: internet " "\X: wifi disabled
+\: no wifi connection
+\: wifi connection with quality
+\: no ethernet
+\: airplane mode
+\: ethernet working
+\: vpn is active
+\<b>Left Click</b>, shows Network Manager statistics.
+\<b>Middle Click</b>, shows this help notification.
+\<b>Shift + Left Click</b>, opens nmtui.
+\<b>Ctrl + Right Click</b> to edit this module." ;;
+	4) scratchpad --wait --title "Network" --command "nmtui" ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+if grep --quiet --line-regexp 'up' /sys/class/net/w*/operstate 2>/dev/null
+then
+	wifiicon="$(awk '/^\s*w/ { print "", int($3 * 100 / 70) "%" }' \
+		/proc/net/wireless)"" $ipv4_address"
+elif grep --quiet --line-regexp 'down' /sys/class/net/w*/operstate 2>/dev/null
+then
+	grep --quiet --line-regexp '0x1003' /sys/class/net/w*/flags && wifiicon="" || wifiicon="X"
+  # else
+	# [ "$(cat /sys/class/rfkill/rfkill1/soft 2>/dev/null)" = "1" ] && wifiicon=""
+fi
+
+printf "[%s%s%s]\n" \
+	"$wifiicon" \
+	"$(sed "s/down//;s/up/ $ipv4_address/" /sys/class/net/e*/operstate 2>/dev/null)" \
+	"$(sed "s/.*//" /sys/class/net/tun*/operstate 2>/dev/null)"
+
+unset interface
+unset ipv4_address
+unset wifiicon

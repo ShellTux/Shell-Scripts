@@ -1,0 +1,13 @@
+#!/bin/sh
+
+DIRECTORY="${XDG_DATA_HOME:-$HOME/.local/share}/dunst"
+VOLUME=39321
+
+case $1 in
+	low)      notification_sound_file="notification_sound_low.wav";;
+	normal)   notification_sound_file="notification_sound_normal.wav";;
+	critical) notification_sound_file="notification_sound_critical.wav";;
+	*)        notification_sound_file="notification_sound_normal.wav";;
+esac
+
+paplay --volume="$VOLUME" "$DIRECTORY/$notification_sound_file"

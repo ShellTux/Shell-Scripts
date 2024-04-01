@@ -1,0 +1,249 @@
+#!/bin/sh
+set -e
+
+# Dependencies:
+# - feh
+# - swww
+# - mpvpaper
+# - ffmpegthumbnailer
+
+SLEEP_TIME=600
+SLEEP_PID=
+WALLPAPER=/tmp/wallpaper
+case $XDG_SESSION_TYPE in
+	wayland) ENABLE_VIDEOS=true ;;
+	*)       ENABLE_VIDEOS=false ;;
+esac
+mpv_options='--really-quiet --sub-visibility=no --volume=12'
+mpvpaper_monitor='*'
+
+usage() {
+	echo "Usage: $(basename "$0") [directories]"
+	echo
+	echo "Options:"
+	echo "  -h, --help                        Show usage page"
+	echo "  --enable-videos                   Enable videos (wayland only)"
+	echo "  --disable-videos                  Turn off video support"
+	echo "  --mpv-options       <options>     Options to pass to mpv through mpvpaper"
+	echo "  --mpvpaper-monitor  <monitor>     Monitor to render wallpaper video (default: '*')"
+	echo "  --sleep-interval                  Time interval in seconds between each" \
+		"wallpaper"
+	echo
+	echo "Positional arguments:"
+	echo "  directories               List of directories to search for wallpapers"
+	echo
+	echo "Examples:"
+	echo "$(basename "$0") "
+	echo "$(basename "$0") ~/Pictures/Wallpapers"
+	echo "$(basename "$0") --disable-videos ~/Pictures/Wallpapers"
+	echo "$(basename "$0") ~/Pictures/Wallpapers ~/Videos"
+	echo "$(basename "$0") --mpv-options='--volume=5'"
+	echo "$(basename "$0") --sleep-interval=10"
+	exit 2
+}
+
+file_type() {
+	type="$(file --brief --mime-type "$1" | cut --delimiter=/ --fields=1)"
+
+	case $type in
+		video) type=video ;;
+		image) type=image ;;
+		*)
+			debug-message ERROR "Invalid filetype $type" >&2
+			return
+			;;
+	esac
+
+	echo "$type"
+}
+
+clear_screen() {
+	case "$XDG_SESSION_TYPE" in
+		wayland) swww clear ;;
+	esac
+}
+
+update_wallpaper() {
+	SLEEP_PID=
+
+	wallpaper="$(readlink "$WALLPAPER")"
+	type="$(file_type "$wallpaper")"
+
+	if [ "$type" = video ] && ! $ENABLE_VIDEOS
+	then
+		debug-message ERROR 'Videos are disabled'
+		wallpaper next
+		return
+	elif [ "$type" = video ] && [ "$XDG_SESSION_TYPE" = x11 ]
+	then
+		debug-message ERROR 'Videos are not supported by Xorg'
+		wallpaper next
+		return
+	fi
+
+	wallpaper_app=
+	case "$XDG_SESSION_TYPE" in
+		x11)
+			feh --no-fehbg --bg-fill "$wallpaper"
+			sleep "$SLEEP_TIME" &
+			SLEEP_PID=$!
+			wallpaper_app=feh
+			;;
+		wayland)
+			case "$type" in
+				video)
+					clear_screen
+					# TODO: Output to specific DISPLAY
+					mpvpaper \
+						--mpv-options="$mpv_options" \
+						"$mpvpaper_monitor" "$wallpaper" &
+					SLEEP_PID=$!
+					wallpaper_app=mpvpaper
+					;;
+				image)
+					swww img --transition-type any "$wallpaper"
+					sleep "$SLEEP_TIME" &
+					SLEEP_PID=$!
+					wallpaper_app=swww
+					;;
+			esac
+			;;
+	esac
+
+	debug-message OK "Updated Wallpaper $(basename "$wallpaper")"
+
+	wallpaper notification
+
+	if wait "$SLEEP_PID"
+	then
+		SLEEP_PID=
+		wallpaper next
+	else
+		exit_code=$?
+		case "$exit_code" in
+			1)
+				if [ "$wallpaper_app" = mpvpaper ]
+				then
+					debug-message ERROR 'Mpvpaper error'
+				fi
+				SLEEP_PID=
+				wallpaper next
+				;;
+			139)
+				debug-message ERROR 'Wallpaper crashed'
+				SLEEP_PID=
+				wallpaper next
+				;;
+		esac
+	fi
+	unset wallpaper_app
+}
+
+signal_sleep() {
+	[ -z "$SLEEP_PID" ] && return
+
+	case "$1" in
+		STOP) kill -STOP "$SLEEP_PID" ;;
+		CONT) kill -CONT "$SLEEP_PID" ;;
+		TERM | KILL)
+			kill "$SLEEP_PID"
+			SLEEP_PID=
+			;;
+	esac
+}
+
+_hup_signal() {
+	signal_sleep KILL
+}
+
+TEMP=$(getopt \
+	--options 'h' \
+	--long 'help,enable-videos,disable-videos,mpv-options:,mpvpaper-monitor:,sleep-interval:' \
+	--name "$(basename "$0")" -- "$@")
+
+if [ $? -ne 0 ]
+then
+	echo 'Terminating...' >&2
+	exit 1
+fi
+
+# Note the quotes around "$TEMP": they are essential!
+eval set -- "$TEMP"
+unset TEMP
+
+while true
+do
+	case "$1" in
+		-h | --help)
+			usage
+			;;
+		--enable-videos)
+			[ "$XDG_SESSION_TYPE" = wayland ] && ENABLE_VIDEOS=true
+			shift
+			continue
+			;;
+		--disable-videos)
+			ENABLE_VIDEOS=false
+			shift
+			continue
+			;;
+		--mpv-options)
+			mpv_options="$2"
+			shift 2
+			continue
+			;;
+		--mpvpaper-monitor)
+			mpvpaper_monitor="$2"
+			shift 2
+			continue
+			;;
+		--sleep-interval)
+			SLEEP_TIME="$2"
+			shift 2
+			continue
+			;;
+		--)
+			shift
+			break
+			;;
+		*) # Option not dealt with
+			echo "$1"
+			echo 'Internal error!' >&2
+			exit 1
+			;;
+	esac
+done
+
+[ "$#" = 0 ] \
+	&& DIRS="$(xdg-user-dir PICTURES)/Wallpapers $(xdg-user-dir VIDEOS)" \
+	|| DIRS="$@"
+
+trap _hup_signal HUP
+# TODO: add signal to toggle ENABLE_VIDEOS
+
+if [ "$(pgrep "$(basename "$0")" | wc --lines)" -gt 2 ]
+then
+	debug-message ERROR "Another instance of $(basename "$0") running"
+	exit 1
+fi
+
+debug-message INFO "$(basename "$0") started"
+debug-message INFO "SLEEP_TIME       = $SLEEP_TIME"
+debug-message INFO "mpv-options      = $mpv_options"
+debug-message INFO "mpvpaper_monitor = $mpvpaper_monitor"
+debug-message INFO "ENABLE_VIDEOS    = $ENABLE_VIDEOS"
+debug-message INFO "DIRS             = $DIRS"
+
+if [ "$XDG_SESSION_TYPE" = wayland ]
+then
+	swww kill 2>/dev/null || true
+	swww-daemon --format xrgb
+fi
+
+wallpaper next
+
+while true
+do
+	update_wallpaper
+	sleep 1
+done

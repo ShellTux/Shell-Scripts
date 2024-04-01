@@ -1,0 +1,20 @@
+#!/bin/sh
+# vim: sw=6
+
+root_folders="$HOME/.local/src $HOME/.local/bin ${XDG_CONFIG_HOME:-$HOME/.config}"
+
+for root in $root_folders
+do
+      for repo in $(find "$root" -maxdepth 3 -type d -name '.git' -exec dirname {} \; | sort --unique)
+      do
+	    if git -C "$repo" pull --all "$@"
+	    then
+		  debug-message OK "$repo: Atualizado com sucesso."
+	    else
+		  debug-message ERROR "$repo: Git pull sem sucesso."
+		  debug-message INFO 'Press Enter to continue.'
+		  read -r _
+		  unset _
+	    fi
+      done
+done

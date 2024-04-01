@@ -1,0 +1,10 @@
+#!/bin/sh
+
+while inotifywait -e modify \
+	~/.config/waybar/config \
+	~/.config/waybar/modules.json \
+	~/.config/waybar/style.css
+do
+    pkill waybar
+    waybar &
+done

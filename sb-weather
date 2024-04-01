@@ -1,0 +1,63 @@
+#!/bin/sh
+
+weatherreport="${XDG_DATA_HOME:-$HOME/.local/share}/weatherreport"
+getforecast() {
+	curl -sf wttr.in > "$weatherreport" || exit 1
+	}
+getweather() {
+	humidity="$(sed '16q;d' "$weatherreport" \
+		| grep -wo "[0-9]*%" \
+		| sort -rn \
+		| sed "s/^//g;1q" \
+		| tr -d '\n')"
+	minimum_temperature="$(sed '13q;d' "$weatherreport" \
+		| grep -o "m\\([-+]\\)*[0-9]\\+" \
+		| sed 's/+//g' \
+		| sort -n -t 'm' -k 2n \
+		| sed -e 1b -e '$!d' \
+		| tr '\n|m' ' ' \
+		| awk '{print $1}')"
+	maximum_temperature="$(sed '13q;d' "$weatherreport" \
+		| grep -o "m\\([-+]\\)*[0-9]\\+" \
+		| sed 's/+//g' \
+		| sort -n -t 'm' -k 2n \
+		| sed -e 1b -e '$!d' \
+		| tr '\n|m' ' ' \
+		| awk '{print $2}')"
+}
+showweather() {
+	getweather
+	printf "[%s %s %s]\n" \
+		"$humidity" \
+		"$minimum_temperatureºC" \
+		"$maximum_temperatureºC"
+}
+
+[ "$(stat -c %y "$weatherreport" 2>/dev/null | cut -d' ' -f1)" = "$(date '+%Y-%m-%d')" ] \
+	|| getforecast
+
+case $BLOCK_BUTTON in
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: weather " \
+		"\- Shows humidity (%), minimum Temperature (ºC) \
+and maximum Temperature (ºC).
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Shift + Left Click</b>, to open weather forecast.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	4) scratchpad \
+		--title Weather \
+		--columns 126 \
+		--command "$PAGER -Srf $weatherreport" ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+showweather
+
+unset weatherreport
+unset humidity
+unset minimum_temperature
+unset maximum_temperature

@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Dependencies
+# pulsemixer
+# wireplumber
+
+[ "$(command -v wpctl)" ] && wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && return
+[ "$(command -v pulsemixer)" ] && pulsemixer --toggle-mute && return
+
+get_volume () {
+      [ "$(command -v wpctl)" ] \
+	      && wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2*100}' \
+	      && return
+      [ "$(command -v pulsemixer)" ] \
+	      && pulsemixer --get-volume | awk '{print $1}' \
+	      && return
+}
+
+is_muted () {
+      [ "$(command -v wpctl)" ] \
+	      && [ ! "$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep MUTED)" = "" ] \
+	      && echo 1 || echo 0 && return
+      [ "$(command -v pulsemixer)" ] \
+	      && pulsemixer --get-mute \
+	      && return
+}
+
+appName="$(basename "$0")"
+msgTag='volume'
+volume="$(get_volume)"
+muted="$(is_muted)"
+dunstify --appname="$appName" \
+	--urgency=low \
+	--icon=audio-volume-high \
+	--hints=string:x-dunst-stack-tag:"$msgTag" \
+	--hints=int:value:"$volume" "Volume: ${volume}%"

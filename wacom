@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# Map Draw region area to screen
+xsetwacom set "Wacom Intuos S Pad pad" \
+	MapToOutput "$(xrandr | awk '/ connected / { print $4 }')"
+
+# A + sign before a key means it is pressed, while a - sign means it is released.
+# Keys with no signs are pressed then released.
+
+# Remaps the button 1 to Ctrl+Z.
+xsetwacom set "Wacom Intuos S Pad pad" Button 1 "key +ctrl z -ctrl"
+# Remaps the button 2 to Ctrl+U.
+xsetwacom set "Wacom Intuos S Pad pad" Button 2 "key +ctrl u -ctrl"
+# Remaps the button 3 to Ctrl+D.
+xsetwacom set "Wacom Intuos S Pad pad" Button 3 "key +ctrl d -ctrl"
+# Remaps the button 4 to Ctrl+S.
+xsetwacom set "Wacom Intuos S Pad pad" Button 8 "key +ctrl s -ctrl"
+
+# Same as above, but more verbose.
+# You can view a full list of modifiers with "xsetwacom list modifiers"
+# xsetwacom set "Wacom Intuos S Pad pad" Button 1 "key +Control_L +z -z -Control_L"
+
+# Remaps the button to mouse button 3.
+# xsetwacom set "Wacom Intuos S Pad pad" Button 1 "button 3"
+
+# You can mix keywords. This example presses mouse button 1 while holding Shift:
+# xsetwacom set "Wacom Intuos S Pad pad" Button 1 "key +shift button 1 key -shift"
+
+# Even little macros are possible:
+# xsetwacom set "Wacom Intuos S Pad pad" Button 1 "key +shift h -shift e l l o"
+
+# Clears all custom mappings from the button.
+# xsetwacom set "Wacom Intuos S Pad pad" Button 1
+

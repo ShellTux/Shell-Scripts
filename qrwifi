@@ -1,0 +1,30 @@
+#!/bin/sh
+
+qrcode_file=/tmp/wifi.png
+
+shred -u "$qrcode_file"
+
+set -e
+
+# shellcheck disable=SC2016
+fzf_preview='nmcli --show-secrets --terse --fields=802-11-wireless-security.psk connection show {} | cut --delimiter=: --fields=2 | xargs -I "_" qrencode --type=ansiutf8 "WIFI:T:WPA;S:$(echo {});P:_;;"'
+
+connection=$(nmcli --terse --fields 'NAME,TYPE' connection show \
+	| awk -F: '$2 == "802-11-wireless" { print $1 }' \
+	| fzf --preview="$fzf_preview")
+password="$(nmcli \
+	--show-secrets \
+	--terse \
+	--fields='802-11-wireless-security.psk' \
+	connection show MEO-AE49D0 \
+	| cut --delimiter=: --fields=2)"
+
+qrencode \
+	--output="$qrcode_file" \
+	--size=12 \
+	--level=H \
+	"WIFI:T:WPA;S:$connection;P:$password;;"
+
+xdg-open "$qrcode_file" &
+
+kill -CONT $!

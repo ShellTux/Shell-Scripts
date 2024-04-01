@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Dependencies
+# libnotify
+# sudo
+
+notify-send --urgency=critical 'Asking for sudo password'
+sudo "$@"

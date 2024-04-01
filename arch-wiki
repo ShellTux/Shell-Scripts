@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# Dependencies
+# arch-wiki-docs
+# libnotify
+# dmenu
+# wofi
+# fzf
+# firefox
+
+if [ "$(pacman -Q arch-wiki-docs arch-wiki-lite 2>/dev/null)" = "" ]
+then
+      notify-send "Install at least one of the 2 packages:" "\- arch-wiki-docs 
+\- arch-wiki-lite"
+      exit 1
+fi
+
+lang="en"
+prompt='Arch wiki search: '
+case $XDG_SESSION_TYPE in
+	wayland)
+		command="wofi --insensitive --normal-window --show dmenu --prompt "
+		;;
+	x11)
+		command="dmenu -p "
+		;;
+	*)
+		command="dmenu -p "
+		;;
+esac
+
+[ -t 1 ] && command="fzf --prompt "
+
+page="$(find /usr/share/doc/arch-wiki -type f -iregex ".*/$lang/.*.html" -printf "%f\n" |
+	sed 's/.html$//' | $command "$prompt")"
+
+[ -n "$page" ] && firefox "/usr/share/doc/arch-wiki/html/$lang/$page.html"

@@ -1,0 +1,102 @@
+#!/bin/sh
+set -e
+
+WALLPAPERS_HOME_DIR="${WALLPAPERS_HOME_DIR:-$HOME/Wallpapers/}"
+WALLPAPERS_IMAGES_DIR="${WALLPAPERS_IMAGES_DIR:-$WALLPAPERS_HOME_DIR/Images}"
+WALLPAPERS_VIDEOS_DIR="${WALLPAPERS_VIDEOS_DIR:-$WALLPAPERS_HOME_DIR/Videos}"
+WALLPAPERS_GIFS_DIR="${WALLPAPERS_GIFS_DIR:-$WALLPAPERS_HOME_DIR/Gifs}"
+WALLPAPER=/tmp/wallpaper
+THUMBNAIL=/tmp/wallpaper-thumbnail
+DAEMON=wallpaperLoop
+DAEMON_PID="$(pgrep "$DAEMON")"
+case $XDG_SESSION_TYPE in
+	wayland) ENABLE_VIDEOS=true ;;
+	*)       ENABLE_VIDEOS=false ;;
+esac
+
+$ENABLE_VIDEOS || WALLPAPERS_VIDEOS_DIR=
+DIRS=
+for dir in "$WALLPAPERS_IMAGES_DIR" "$WALLPAPERS_GIFS_DIR" "$WALLPAPERS_VIDEOS_DIR"
+do
+	if [ -z "$dir" ]
+	then
+		continue
+	elif [ ! -d "$dir" ]
+	then
+		debug-message ERROR "Directory $dir doesn't exist"
+	else
+		DIRS="$DIRS $dir"
+	fi
+done
+
+get_random_wallpaper() {
+	# shellcheck disable=2086
+	wallpaper="$(find $DIRS \
+		-maxdepth 1 \
+		-type f \
+		-name "*.jpg" -o \
+		-name "*.png" -o \
+		-name "*.gif" -o \
+		-name "*.mkv" -o \
+		-name ".avi" -o \
+		-name ".m4v" -o \
+		-name ".mp4" -o \
+		-name ".webm" \
+		| shuf --head-count=1)"
+
+	[ -z "$wallpaper" ] \
+		&& debug-message WARNING "Check if there are any wallpapers in $DIRS" >&2
+
+	echo "$wallpaper"
+}
+
+change_wallpaper() {
+	wallpaper="$1"
+
+	if [ -z "$wallpaper" ]
+	then
+		debug-message WARNING 'No wallpaper provided'
+		return
+	fi
+
+	type=$(file --brief --mime-type "$wallpaper" | cut --delimiter=/ --fields=1)
+
+	case $type in
+		image) ;;
+		video) ;;
+		*)
+			debug-message ERROR "Invalid filetype $type" >&2
+			return
+			;;
+	esac
+
+	ln --symbolic --force "$wallpaper" "$WALLPAPER"
+
+	ffmpegthumbnailer \
+		-i "$wallpaper" \
+		-o "$THUMBNAIL" \
+		-s 0 \
+		-t "$(shuf --input-range=10-90 --head-count=1)%" >/dev/null 2>/dev/null
+
+	debug-message OK "Changed wallpaper to $(basename "$wallpaper")"
+
+	kill -HUP "$DAEMON_PID"
+}
+
+notify() {
+	wallpaper="$(readlink "$WALLPAPER")"
+
+	notify-send \
+		--app-name="$(basename "$0")" \
+		--icon="$THUMBNAIL" \
+		--urgency=low \
+		'Wallpaper Update' "$(basename "$wallpaper")"
+}
+
+[ -f "$1" ] && change_wallpaper "$(realpath "$1")" && exit 0
+
+case "$1" in
+	next) change_wallpaper "$(get_random_wallpaper)" ;;
+	reset-timer) kill -HUP "$DAEMON_PID" ;;
+	'' | notification) notify ;;
+esac

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+prompt="Emoji: "
+case $XDG_SESSION_TYPE in
+	x11)
+		selection="dmenu -p "
+		clipboard="xclip -selection clipboard"
+		;;
+	wayland)
+		selection="wofi --insensitive --show dmenu --prompt "
+		clipboard="wl-copy"
+		;;
+esac
+
+[ "$(tty | grep --count '^/dev/pts/[0-9]\+$')" = "1" ] && \
+	selection="fzf --prompt "
+
+
+emoji="$($selection "$prompt" < "$HOME/.local/share/emojis.txt" |
+	awk '{print $1}')"
+[ "$emoji" = "" ] && exit
+
+printf '%s' "$emoji" | $clipboard
+notify-send "$emoji copied to clipboard"

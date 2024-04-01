@@ -1,0 +1,80 @@
+#!/bin/sh
+set -e
+
+folder="$(xdg-user-dir PICTURES)/Screenshots/"
+folder="$(realpath "$folder")"
+mkdir -p "$folder" || true
+cd "$folder" || exit 1
+
+file="$(xdg-user-dir PICTURES)/Screenshots/Capture-$(date +%Y-%m-%d_%H-%m-%s).png"
+quality=100
+
+choices='Fullscreen;Select Region;Select Window;Current Window'
+
+# TODO: Use other launchers besides bemenu
+choice="$(echo "$choices" | tr ';' '\n' | bemenu --ignorecase --list 4)"
+case $choice in
+	Fullscreen) choice=fullscreen ;;
+	"Select Window") choice=select ;;
+	"Select Region") choice=select-region ;;
+	"Current Window") choice=current ;;
+esac
+
+
+if [ "$XDG_SESSION_TYPE" = "x11" ]
+then
+	case $choice in
+		fullscreen )
+			scrot --quality $quality --file "$file";;
+		select )
+			scrot --quality $quality --select=capture --file "$file";;
+		current )
+			scrot --quality $quality --focused --file "$file";;
+		* )
+			scrot --quality $quality --file "$file";;
+	esac
+
+	[ -f "$file" ] || exit 1
+
+elif [ "$XDG_SESSION_TYPE" = "wayland" ]
+then
+	case $choice in
+		fullscreen )
+			grim "$file";;
+		select )
+			case "$XDG_CURRENT_DESKTOP" in
+				Hyprland)
+					region="$(hyprprop \
+						| jq '.at[0], .at[1], .size[0], .size[1]' \
+						| xargs printf '%d,%d %dx%d\n')"
+					;;
+			esac
+			grim -g "$region" "$file"
+			;;
+		select-region)
+			grim -g "$(slurp)" "$file"
+			;;
+
+		current )
+			case "$XDG_CURRENT_DESKTOP" in
+				Hyprland)
+					region="$(hyprctl -j activewindow \
+						| jq '.at[0], .at[1], .size[0], .size[1]' \
+						| xargs printf '%d,%d %dx%d\n')"
+					;;
+			esac
+			grim "$file"
+			;;
+		* )
+			grim "$file";;
+	esac
+
+	[ -f "$file" ] || exit 1
+
+	wl-copy < "$file"
+fi
+
+[ -f "$file" ] || exit 1 \
+	&& notify-send --icon "$file" "Screenshot Taken Successfully" \
+	"Copied to Clipboard  
+$file"

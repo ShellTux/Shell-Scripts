@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+editor="$1"
+shift
+
+line="$1"
+shift
+
+filepath="$@"
+
+echo "editor   = $editor"
+echo "line     = $line"
+echo "filepath = $filepath"
+"$editor" +"$line" "$filepath"

@@ -1,0 +1,177 @@
+#!/bin/sh
+set -e
+# shellcheck disable=SC2086
+
+usage() {
+	echo "Usage: $(basename "$0")"
+	echo
+	echo 'Options:'
+	echo ' -h, --help                            Print this help page'
+	echo ' -d, --debug                           Print debugging information'
+	echo ' -c, --class             <class name>  Change window class'
+	echo ' -n, --name              <name>        Change window instance name'
+	echo ' -t, --title             <title>       Change window title'
+	echo ' -L, --lines             <lines>       Change terminal amount of lines'
+	echo ' -C, --columns           <columns>     Change terminal amount of columns'
+	echo ' -e, --command           <command>     Command to be run on the new ' \
+		'terminal'
+	echo ' -T, --terminal          <terminal>    Change terminal to be used'
+	echo ' -W, --working-directory <directory>   Change working directory'
+	echo ' -w, --wait                            Wait for the scratchpad to terminate'
+	echo
+	echo 'Examples:'
+	echo 'scratchpad --class Scratchpad --title Music' \
+		"--command 'ncmpcpp --screen visualizer'"
+	exit 2
+}
+
+debug() {
+	echo "Class: $class"
+	echo "Name: $name"
+	echo "Title: $title"
+	echo "Lines: $lines"
+	echo "Columns: $columns"
+	echo "Width: $width"
+	echo "Height: $height"
+	echo "Terminal: $terminal"
+	echo "Command: $command"
+}
+
+# Default values
+class='Scratchpad'
+command="$SHELL"
+name='Scratchpad'
+resolution="$(xrandr | awk '/\*/ {print $1}')"
+terminal="$TERMINAL"
+title='Scratchpad'
+working_directory="$HOME"
+setsid_opts='--fork'
+debugging=false
+
+case $resolution in
+	"1366x768")  lines=24 ; columns=100 ; width=1000 ; height=600 ;;
+	"1680x1050") lines=30 ; columns=120 ; width=1400 ; height=800 ;;
+	*)           lines=24 ; columns=130 ; width=1400 ; height=800 ;;
+esac
+
+options='hdc:n:t:L:C:e:T:W:w'
+long_options='help,debug,class:,name:,title:,lines:,columns:'
+long_options="$long_options,command:,terminal:,working-directory:,wait"
+TEMP=$(getopt \
+	--options $options \
+	--long  $long_options \
+	--name "$(basename "$0")" -- "$@")
+
+if [ $? -ne 0 ]; then
+	echo 'Terminating...' >&2
+	exit 1
+fi
+
+# Note the quotes around "$TEMP": they are essential!
+eval set -- "$TEMP"
+unset TEMP
+
+while true
+do
+	case "$1" in
+		-h | --help)
+			usage
+			;;
+		-d | --debug)
+			debugging=true
+			shift
+			continue
+			;;
+		-c | --class)
+			class="$2"
+			shift 2
+			continue
+			;;
+		-n | --name)
+			name="$2"
+			shift 2
+			continue
+			;;
+		-t | --title)
+			title="$2"
+			shift 2
+			continue
+			;;
+		-L | --lines)
+			lines="$2"
+			shift 2
+			continue
+			;;
+		-C | --columns)
+			columns="$2"
+			shift 2
+			continue
+			;;
+		-e | --command)
+			command="$2"
+			shift 2
+			continue
+			;;
+		-T | --terminal)
+			terminal="$2"
+			shift 2
+			continue
+			;;
+		-W | --working-directory)
+			working_directory="$2"
+			shift 2
+			continue
+			;;
+		-w | --wait)
+			setsid_opts="--wait $setsid_opts"
+			shift
+			continue
+			;;
+		--)
+			shift
+			break
+			;;
+		*) # Option not dealt with
+			echo 'Internal error!' >&2
+			exit 1
+			;;
+	esac
+done
+
+$debugging && debug
+
+cd "$working_directory" || exit 1
+case $terminal in
+	alacritty) setsid "$setsid_opts" \
+		alacritty \
+		--class "$class,$name" \
+		--title "$title" \
+		--option "window.dimensions.lines=$lines" \
+		--option "window.dimensions.columns=$columns" \
+		--command $command ;;
+	kitty)     setsid "$setsid_opts" \
+		kitty \
+		--class "$class" \
+		--name "$name" \
+		--title "$title" \
+		--override "remember_window_size no" \
+		--override "initial_window_width $width" \
+		--override "initial_window_height $height" \
+		$command;;
+	st)        setsid $setsid_opts \
+		st \
+		-c "$class" \
+		-t "$title" \
+		-n "$name" \
+		-g "$columns"'x'"$lines" \
+		-e $command ;;
+	wezterm)
+		# TODO: title, name
+		wezterm \
+			--config="initial_rows=$lines" \
+			--config="initial_cols=$columns" \
+			start \
+			--class "$class" \
+			$command
+			;;
+esac

@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+usage() {
+	exit 1
+}
+
+[ -z "$1" ] && usage
+
+rm --force .exrc
+
+case "$1" in
+	c++|cpp)
+		echo 'set makeprg=g++\ -Wall\ -Wextra\ -o\ main\ main.cpp'
+		echo 'autocmd BufWritePost main.cpp make'
+		;;
+	c)
+		echo 'set makeprg=gcc\ -Wall\ -Wextra\ -o\ main\ main.c'
+		echo 'autocmd BufWritePost main.c make'
+		;;
+	*) usage ;;
+esac | tee --append .exrc

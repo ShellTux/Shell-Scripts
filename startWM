@@ -1,0 +1,70 @@
+#!/bin/sh
+set -e
+
+usage() {
+	echo "Usage: $(basename "$0") [Display Server / Window Manager]" >&2
+	echo
+	echo 'First argument can be:'
+	echo 'x11, xorg, x, wayland, dwm, awesome, xmonad, i3, hyprland, sway'
+	echo
+	echo 'Available window managers are listed as desktop files in the directories'
+	echo '/usr/share/xsessions/ /usr/share/wayland-sessions/'
+	echo '/usr/local/share/xsessions/ /usr/local/share/wayland-sessions/'
+	echo
+	echo 'First argument is case insensitive'
+	echo
+	echo 'If you pick x, it will launch a random x11 wm'
+	echo 'If you pick wayland, it will launch a random wayland wm'
+
+	exit 1
+}
+
+list_x_wm() {
+	find /usr/share/xsessions/ /usr/local/share/xsessions/ \
+		-type f \
+		-name "*.desktop" \
+		-exec awk -F'=' '/Exec/ { print $2 }' {} \; \
+		2>/dev/null | sort --unique
+}
+
+list_wayland_wm() {
+	find /usr/share/wayland-sessions/ /usr/local/share/wayland-sessions/ \
+		-type f \
+		-name "*.desktop" \
+		-exec awk -F'=' '/Exec/ { print $2 }' {} \; \
+		2>/dev/null | sort --unique
+}
+
+choice="$(echo "$1" | tr '[:upper:]' '[:lower:]')"
+
+wm="$(case "$choice" in
+	'')             list_x_wm ; list_wayland_wm ;;
+	x11 | x | xorg) list_x_wm ;;
+	wayland)        list_wayland_wm ;;
+	*)
+		printf '%s\n%s\n' "$(list_x_wm)" "$(list_wayland_wm)" | grep -i "^$choice$"
+		;;
+esac | shuf --head-count=1)"
+
+[ -z "$wm" ] && usage
+
+startX() {
+	export XDG_SESSION_TYPE=x11
+	setconf ~/.xinitrc DEFAULT_SESSION="$1"
+	startx
+}
+
+startWayland() {
+	export XDG_SESSION_TYPE=wayland
+	exec "$1"
+}
+
+if [ "$(list_x_wm | grep --count "^$wm$")" -ne 0 ]
+then
+	startX "$wm"
+elif [ "$(list_wayland_wm | grep --count "^$wm$")" -ne 0 ]
+then
+	startWayland "$wm"
+else
+	usage
+fi

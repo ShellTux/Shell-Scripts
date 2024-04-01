@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Runs `onefetch -a Assembly`, `onefetch -a C`, etc.
+onefetch -l | tr "[:upper:] " "[:lower:]-" | \
+	while read -r line; do echo "$line"; onefetch -a "$line"; sleep 1; done;

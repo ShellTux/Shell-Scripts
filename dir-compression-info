@@ -1,0 +1,37 @@
+#!/bin/sh
+set -e
+
+usage() {
+	echo "Usage: $(basename "$0") <directory>"
+	echo
+	echo "a txt file will be generated that provides the compression info."
+	exit 1
+}
+
+[ "$#" -lt 1 ] && usage
+
+directory="$1"
+[ ! -d "$directory" ] && usage
+
+output_file="$(echo "$directory" | sed 's|/|_|g')_compression_info.txt"
+
+original_size="$(du --summarize --bytes "$directory" | cut --fields=1)"
+original_size_human="$(echo "$original_size" | numfmt --to=iec)"
+start_time="$(date +%s)"
+compressed_size="$(tar --create --gzip --file=- "$directory" | wc -c)"
+end_time="$(date +%s)"
+compressed_size_human="$(echo "$compressed_size" | numfmt --to=iec)"
+compression_rate="$(echo "scale=2; 100 * ($original_size - $compressed_size) / $original_size" | bc --mathlib)"
+time_taken=$((end_time - start_time))
+
+echo "original_size=$original_size ($original_size_human)"
+echo "compressed_size=$compressed_size ($compressed_size_human)"
+echo "compression_rate=$compression_rate"
+echo "time_taken=$time_taken ($time_taken s)"
+
+echo "Current size of $directory: $original_size_human" | tee "$output_file"
+echo "Compressed size of $directory after dry run compression: $compressed_size_human" | tee --append "$output_file"
+echo "Compression rate: $compression_rate%" | tee --append "$output_file"
+echo "Time taken for compression: $time_taken seconds" | tee --append "$output_file"
+
+echo "Compression information saved to $output_file"

@@ -1,0 +1,27 @@
+#!/bin/sh
+
+aur_helper=yay
+
+if [ -z "$(pacman -Qu)" ]
+then
+	debug-message 'INFO' 'Packages up to date!'
+	read -r _
+	exit
+fi
+
+debug-message 'INFO' 'Beginning upgrading packages'
+debug-message 'WARNING' 'sudo pacman -Syu'
+sudo pacman -Syu
+
+printf 'Upgrade AUR Packages? [y/N] '
+read -r aur
+if [ "$aur" = "y" ] || [ "$aur" = "Y" ] || [ "$aur" = "yes" ]
+then
+	$aur_helper --aur -Syyu
+fi
+
+debug-message 'OK' 'Upgrade Complete'
+printf 'Press <Enter> to exit window.\n'
+read -r _
+
+pkill -RTMIN+2 dwmblocks

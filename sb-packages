@@ -1,0 +1,35 @@
+#!/bin/sh
+# Dependencies
+# libnotify
+
+pkgs="$(pacman -Qu | wc -l)"
+[ "$pkgs" = 0 ] && msg="All packages are up to date" || msg="$(pacman -Qu)"
+
+[ -n "$1" ] && BLOCK_BUTTON=$1
+
+case $BLOCK_BUTTON in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		"Packages update (Pacman)" \
+		"$msg" ;;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: packages " \
+		"\- Shows number of packages that are out-of-date.
+\- <b>Left Click</b>, shows a list of the outdated packages.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Right Click</b>, opens a terminal ($TERMINAL)" \
+	" and force sync of local database of packages.
+\- <b>Shift + Left Click</b>, opens arch-linux-upgrade.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	3) scratchpad --title Update --command "doas pacman -Syy" ;;
+	4) scratchpad --wait --title Upgrade --command "arch-linux-upgrade" ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+pkgs="$(pacman -Qu | wc -l)"
+
+[ ! "$pkgs" = 0 ] && printf '[ %d]\n' "$pkgs"

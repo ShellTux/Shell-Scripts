@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# Dependecies:
+# 	- dunst
+
+case $BLOCK_BUTTON in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		"Clock" "Time: $(date '+%H:%M:%S')
+$(timedatectl status | grep -o 'Time zone:.*\|System clock synchronized:.*')";;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: clock " "\- Shows current time. (Hour:Minute)
+\- <b>Left Click</b>, shows more information about time.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+printf "[ %s]\n" "$(date '+%H:%M')"

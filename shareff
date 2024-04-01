@@ -1,0 +1,52 @@
+#!/bin/sh
+
+temp_dir="$(mktemp --directory)"
+
+cp -r "$@" "$temp_dir"
+
+SIGTERM=2
+firewall='firewall-cmd'
+port=8080
+ip="$(ip -brief add | grep --max-count=1 UP | awk '{print $3}' | cut --delimiter='/' --fields=1)"
+
+set -x
+
+if [ ! "$ip" = 127.0.0.1 ]
+then
+	case "$firewall" in
+		firewall-cmd)
+			sudo firewall-cmd --add-port="$port"/tcp --add-port="$port"/udp
+			;;
+		*)
+			echo Unkown firewall
+			exit 1
+			;;
+	esac
+fi
+
+python -m http.server --bind "$ip" --directory "$temp_dir" "$port" &
+pid=$!
+
+kill_server() {
+	echo Killing HTTP server...
+	kill "$pid"
+}
+
+trap 'kill_server' "$SIGTERM"
+wait "$pid"
+
+rm -rf "$temp_dir"
+
+if [ ! "$ip" = 127.0.0.1 ]
+then
+	case "$firewall" in
+		firewall-cmd)
+			sudo firewall-cmd --reload
+			;;
+		*)
+			echo Unkown firewall
+			exit 1
+			;;
+	esac
+fi
+

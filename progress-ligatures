@@ -1,0 +1,51 @@
+#!/bin/sh
+
+empty_bar=""
+full_bar=""
+
+printf '\033[?25l'
+columns=10
+
+i=0
+total=100
+while [ $i -le $total ]
+do
+	ratio="$(echo "100 * $i / $total" | bc )"
+
+	# Progress bar
+	j=0
+	while [ $j -lt $columns ]
+	do
+
+		if [ "$(echo "100 * $j / $columns <= $ratio" | bc -l)" = "1" ]
+		then
+			if [ $j -eq 0 ]
+			then
+				printf ""
+			elif [ $j -eq $((columns - 1)) ]
+			then
+				printf ""
+			else
+				printf ""
+			fi
+		else
+			if [ $j -eq 0 ]
+			then
+				printf ""
+			elif [ $j -eq $((columns - 1)) ]
+			then
+				printf ""
+			else
+				printf ""
+			fi
+		fi
+		j=$((j + 1))
+	done
+	echo "100 * $i / $total" | bc -l | xargs printf '%.0f%%\r\n'
+
+	i=$((i + 1))
+	sleep .05
+	printf '\033[1A'
+done
+
+printf '\033[?25h'

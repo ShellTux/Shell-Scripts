@@ -1,0 +1,7 @@
+#!/bin/sh
+
+DIRECTORY="${XDG_DATA_HOME:-$HOME/.local/share}/dunst"
+VOLUME=39321
+notification_sound_file="notification_sound_normal.wav"
+
+paplay --volume="$VOLUME" "$DIRECTORY/$notification_sound_file"

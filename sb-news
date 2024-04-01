@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Dependecies:
+# dunst
+# libnotify
+# newsboat
+
+[ -n "$1" ] && BLOCK_BUTTON=$1
+
+case $BLOCK_BUTTON in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		'RSS Feed ' "$(newsboat --execute=print-unread)" ;;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: news " \
+		"\- Shows unread news items
+\- <b>Left Click</b>, shows amount of unread rss articles.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Shift + Left Click</b>, opens newsboat.
+\- <b>Ctrl + Right Click</b> to edit this module.
+<b><span color=\"red\">Note:</span></b> \
+Only one instance of newsboat (including updates) may be running at a time." ;;
+	4) scratchpad --wait --title News --command newsboat ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+
+urls_file="${XDG_CONFIG_HOME:-$HOME/.config}/newsboat/urls"
+if [ ! -f "$urls_file" ] \
+	|| [ "$(wc --lines "$urls_file" | cut --delimiter=' ' --fields=1)" = "0" ]
+then
+	printf '\n'
+	exit 0
+fi
+
+while [ ! "$(pgrep newsboat)" = "" ]
+do
+	sleep 1
+done
+
+unread="$(newsboat --execute=print-unread 2>/dev/null | awk '{print $1}')"
+[ ! "$unread" = 0 ] && printf '[ %s]\n' "$unread"
+newsboat --execute=reload 2>/dev/null &
+
+unset unread

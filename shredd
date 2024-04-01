@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+usage() {
+	echo "Usage: $(basename "$0") <directory>"
+	exit 1
+}
+
+last_arg=
+for arg
+do
+	last_arg="$arg"
+done
+
+remaining_args=
+i=1
+for arg
+do
+	[ $i -ne $# ] && remaining_args="$remaining_args $arg"
+	i=$((i + 1))
+done
+
+directory="$last_arg"
+[ -z "$directory" ] && usage
+
+find "$directory" -type f \
+	| while read -r file
+do
+	# shellcheck disable=SC2086
+	shred $remaining_args "$file"
+done
+
+rm -rd "$directory"

@@ -1,0 +1,120 @@
+#!/bin/sh
+set -e
+
+# Dependencies:
+# - sudo
+# - x11-ssh-askpass
+
+log_dir="$HOME/.cache/$(basename "$0")"
+mkdir -p "$log_dir"
+exec > "$log_dir/$(date -u +%Y-%m-%dT%H:%M:%S%Z)".log 2>&1
+
+# TODO : Write usage function
+usage() {
+	echo Usage
+	exit 1
+}
+
+[ "$1" != mount ] && [ "$1" != unmount ] && usage
+
+if [ "$1" = mount ]
+then
+	prompt=Mount
+	partition="$(lsblk --bytes --inverse --nodeps --output PATH,NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL --raw | sed 's/ /\t/g;s/\\x20/ /g' | awk -F'\t' '
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+function formatBytes(bytes) {
+	unitIndex = 0
+	units = "KMGTPEZY"
+
+	while (bytes >= 1024 && unitIndex < length(units)) {
+		bytes /= 1024
+		unitIndex++
+	}
+
+	return sprintf("%.2f %c%s", bytes, substr(units, unitIndex, 1), "iB")
+}
+
+(NR!=1 && ($4 == "part" || $4 == "crypt") && $6 == "") {
+	$3 = formatBytes($3)
+	print
+}' | bemenu --ignorecase --list=10 --prompt="$prompt" --wrap)"
+echo "$partition"
+path="$(echo "$partition" | awk -F'\t' '{print $1}')"
+name="$(echo "$partition" | awk -F'\t' '{print $2}')"
+fstype="$(echo "$partition" | awk -F'\t' '{print $5}')"
+label="$(echo "$partition" | awk -F'\t' '{print $7}')"
+test -b "$path"
+
+if [ "$fstype" = "crypto_LUKS" ]
+then
+	crypt_name="$(echo | bemenu --prompt="Name for $name: ")"
+	sudo -A echo | bemenu --prompt="Password for $crypt_name: " --password | sudo cryptsetup open "$path" "$crypt_name"
+	path="/dev/mapper/$crypt_name"
+	test -b "$path"
+	label="$(lsblk --noheadings --output LABEL "$path")"
+	[ -z "$label" ] && mountpoint="/mnt/$crypt_name" || mountpoint="/mnt/$label"
+else
+	mountpoint="$(find /mnt -mindepth 1 -type d | bemenu --ignorecase --wrap --list=10)"
+fi
+
+sudo -A mount --mkdir --options="uid=$(id --user),gid=$(id --group)" "$path" "$mountpoint"
+
+notify-send "Mount" "Mounted $path in $mountpoint"
+
+elif [ "$1" = unmount ]
+then
+	prompt=Unmount
+	partition="$(lsblk --bytes --inverse --nodeps --output PATH,NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,LABEL --raw | sed 's/ /\t/g;s/\\x20/ /g;s/\\x0a/ /g' | awk -F'\t' '
+BEGIN {
+    FS = "\t"
+    OFS = "\t"
+}
+
+function hasMountpoint(mountpointsString, mountpoint_string) {
+    n = split(mountpointsString, substrings, " ");
+    for (i = 1; i <= n; i++) {
+	    if (mountpoint_string == substrings[i]) {
+		    return 1;
+	    }
+    }
+    return 0;
+}
+
+function formatBytes(bytes) {
+	unitIndex = 0
+	units = "KMGTPEZY"
+
+	while (bytes >= 1024 && unitIndex < length(units)) {
+		bytes /= 1024
+		unitIndex++
+	}
+
+	return sprintf("%.2f %c%s", bytes, substr(units, unitIndex, 1), "iB")
+}
+
+(NR!=1 && ($4 == "part" || $4 == "crypt") && $6 != "" && !hasMountpoint($6, "/") && !hasMountpoint($6, "/boot")) {
+	$3 = formatBytes($3)
+	print
+}' | bemenu --ignorecase --list=10 --prompt="$prompt" --wrap)"
+echo "$partition"
+path="$(echo "$partition" | awk -F'\t' '{print $1}')"
+type="$(echo "$partition" | awk -F'\t' '{print $4}')"
+
+test -b "$path"
+
+sudo -A umount "$path"
+
+notify-send "Unmount" "Unmounted $path"
+
+if [ "$type" = "crypt" ]
+then
+	crypt_name="$(echo "$partition" | awk -F'\t' '{print $2}')"
+	sudo -A cryptsetup close "$crypt_name"
+	
+	notify-send "Crypt close" "Close $crypt_name"
+fi
+fi

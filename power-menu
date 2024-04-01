@@ -1,0 +1,12 @@
+#!/bin/sh
+
+choices='
+Shutdown
+Reboot'
+
+choice="$(echo "$choices" | bemenu --prompt "Power Menu" --ignorecase --list 10)"
+case $choice in
+	Shutdown) shutdown now ;;
+	Reboot)   reboot ;;
+esac
+

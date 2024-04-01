@@ -1,0 +1,24 @@
+#!/bin/sh
+
+case $BLOCK_BUTTON in
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		" Status Bar Module: Disk Activity" \
+		"\- Shows read and write activity
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+disk_activity="$(dstat -d 1 2 1 | tail -n -1)"
+read_="$(echo "$disk_activity" | awk '{print $1}')"
+write_="$(echo "$disk_activity" | awk '{print $2}')"
+
+printf "[ R:%4s, W: %4s]\n" "$read_" "$write_"
+
+unset disk_activity
+unset read_
+unset write_

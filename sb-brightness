@@ -1,0 +1,31 @@
+#!/bin/sh
+# Dependecies:
+# 	- dunst
+# 	- brightnessctl
+
+[ ! -r "$(which brightnessctl 2>/dev/null)" ] && exit
+
+LC_NUMERIC="en_US.UTF-8"
+brightness="$(brightnessctl | awk '(NR == 2){print $4}' | sed 's/(//;s/)//')"
+
+case $BLOCK_BUTTON in
+	1) brightness notify ;;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		" Status Bar Module: Brightness" "\- Shows Brightness in %.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Ctrl + Right Click</b> to edit this module.
+\- <b>Scroll Up</b>, increase brightness 5.
+\- <b>Scroll Down</b>, decrease brightness 5." ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+	# Changing brightness has some bugs
+	# ':') brightnessctl set +5% ;; # Scroll up
+	# ';') brightnessctl set 5%- --min-value 1 ;; # Scroll down
+esac
+
+printf "[ %s]\n" "$brightness"
+
+unset perc

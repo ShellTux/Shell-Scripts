@@ -1,0 +1,84 @@
+#!/bin/sh
+
+# Dependencies
+# libnotify
+# pulsemixer
+# wireplumber
+# mpc
+
+[ "$1" = "music" ] && notify-music
+
+get_volume () {
+      [ "$(command -v wpctl)" ] \
+	      && wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print $2*100}' \
+	      && return
+      [ "$(command -v pulsemixer)" ] \
+	      && pulsemixer --get-volume | awk '{print $1}' \
+	      && return
+}
+
+is_muted () {
+      [ "$(command -v wpctl)" ] \
+	      && [ ! "$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep MUTED)" = "" ] \
+	      && echo 1 || echo 0 && return
+      [ "$(command -v pulsemixer)" ] \
+	      && pulsemixer --get-mute \
+	      && return
+}
+
+[ "$(command -v pavucontrol)" ] && control_panel="pavucontrol"
+[ "$(command -v pulsemixer)" ] && control_panel="pulsemixer"
+
+[ -n "$1" ] && [ ! "$1" = "music" ] && BLOCK_BUTTON=$1
+
+case $BLOCK_BUTTON in
+	1) notify-music --quiet ;;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		" Status Bar Module: Volume" "\- Shows volume ,  if muted
+\- <b>Left Click</b>, shows current playing/paused music track.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Right Click</b>, Resumes/pauses current music track.
+\- <b>Shift + Left Click</b>, opens volume control panel.
+\- <b>Ctrl + Left Click</b>, opens ncmpcpp.
+\- <b>Ctrl + Right Click</b> to edit this module.
+\- <b>Scroll Up</b>, increase volume by 5.
+\- <b>Scroll Down</b>, decrease volume by 5.
+\- <b>Shift + Scroll Up</b>, increase mpc volume by 5.
+\- <b>Shift + Scroll Down</b>, decrease mpc volume by 5.
+\- <b>Ctrl + Scroll Up</b>, increase volume by 1.
+\- <b>Ctrl + Scroll Down</b>, decrease volume by 1." ;;
+        3) mpc --quiet toggle ;;
+	4) scratchpad --command "$control_panel" ;; # pulsemixer || pavucontrol
+	7) scratchpad --terminal st --command "ncmpcpp --screen visualizer" ;;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+	10) volume 5 + ;; # Scroll up
+	11) volume 5 - ;; # Scroll down
+	12) mpc --quiet volume +5 ;; # Shift + Scroll up
+	13) mpc --quiet volume -5 ;; # Shift + Scroll down
+	14) volume 1 + ;; # Ctrl + Scroll up
+	15) volume 1 -;; # Ctrl + Scroll down
+esac
+
+vol=$(get_volume)
+muted=$(is_muted)
+icon=""
+[ "$vol" -gt 0 ] && icon=""
+[ "$vol" -gt 40 ] && icon=""
+[ "$vol" -gt 75 ] && icon=""
+[ "$muted" -eq 1 ] && icon=""
+music=""
+[ -n "$(mpc status | awk '(NR==2 && /playing/){ print }')" ] \
+	&& music="|$(mpc status | \
+	awk '(NR==3){print}' | \
+	sed 's/[a-z]\+: off/-/g;s/repeat: on/r/;s/random: on/z/;s/single: on/s/' | \
+	sed 's/consume: on/c/;s/ //g;s/volume:\([0-9]\+%\)/:\1 /')"
+
+printf '[%s %d%%%s]\n' "$icon" "$vol" "$music"
+
+unset vol
+unset icon
+unset music

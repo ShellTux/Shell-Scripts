@@ -1,0 +1,26 @@
+#!/bin/sh
+
+[ -n "$1" ] && BLOCK_BUTTON="$1"
+
+case $BLOCK_BUTTON in
+	1) notify-send \
+		--app-name="$(basename "$0")" \
+		'Calendar' "$(date '+%A, %d de %B de %Y')
+$(cal | sed "s#$(date +%d)#<b><span color='red'>$(date +%d)</span></b>#")";;
+	2) notify-send \
+		--app-name="$(basename "$0")" \
+		"Status Bar Module: date " \
+		"\- Shows day of the week and today's date.
+\- <b>Left Click</b>, shows a calendar for the current month.
+\- <b>Middle Click</b>, shows this help notification.
+\- <b>Shift + Left Click</b>, shows a calendar for the previous, current and next month.
+\- <b>Ctrl + Right Click</b> to edit this module." ;;
+	4) notify-send "Calendar" "$(date '+%A, %d de %B de %Y')
+$(cal -3 | sed "s#$(date +%d)#<b><span color='red'>$(date +%d)</span></b>#2")";;
+	9) scratchpad \
+		--title "Edit $(basename "$0")" \
+		--working-directory "$(dirname "$0")" \
+		--command "$EDITOR $0" ;;
+esac
+
+printf "[ %s]\n" "$(date '+%a, %d/%m/%Y')"

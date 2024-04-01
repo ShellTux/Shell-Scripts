@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# Dependencies
+# fzf
+# mpc
+# ffmpegthumbnailer
+# viu
+# wofi
+# dmenu
+
+# shellcheck disable=SC2005,SC2016
+fzf_menu() {
+	echo "$(mpc playlist --format "%title%\t$(xdg-user-dir MUSIC)/%file%" \
+		| fzf --reverse \
+		--delimiter='\t' \
+		--with-nth=1 \
+		--preview='ffmpegthumbnailer -i "$(echo "{}" \
+		| cut -f2 \
+		| sed "s/.$//")" \
+		-c png \
+		-m \
+		-s 512 \
+		-o - 2>/dev/null \
+		| viu -w $((LINES + 20)) -b -' \
+		| cut -f1)"
+	}
+
+wofi_menu() {
+	echo "$(mpc playlist | wofi --show dmenu --prompt='Select a song: ')"
+}
+
+dmenu_menu() {
+	echo "$(mpc playlist | dmenu -p 'Select a song:')"
+}
+
+case "$1" in
+	fzf) selected_song="$(fzf_menu)";;
+	wofi) selected_song="$(wofi_menu)";;
+	dmenu) selected_song="$(dmenu_menu)";;
+	*)
+		tty --silent && selected_song="$(fzf_menu)" ||
+		case $XDG_SESSION_TYPE in
+		x11) selected_song="$(dmenu_menu)";;
+		wayland) selected_song="$(wofi_menu)";;
+	esac;;
+esac
+
+[ "$selected_song" = "" ] && exit 0
+
+# Get the index of the selected song
+index=$(echo "$(mpc playlist)" | grep -n "$selected_song" | cut -d ':' -f1)
+
+# Play the selected song using mpc
+mpc play "$index"
