@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+figlet_font_directory=/usr/share/figlet/fonts
+
+find "$figlet_font_directory" -type f -printf '%f\n' \
+	| sort \
+	| awk -F'.' '/.flf$/ { print }' \
+	| while read -r font
+do
+	echo "$font:"
+	# shellcheck disable=SC2068
+	figlet -f "$font" $@
+	echo
+done | less
