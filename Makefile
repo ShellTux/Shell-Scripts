@@ -35,7 +35,6 @@ extract:
 		gzip \
 		p7zip \
 		tar \
-		unrar \
 		unzip \
 		zip
 
