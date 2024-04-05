@@ -16,12 +16,14 @@ case $XDG_SESSION_TYPE in
 esac
 mpv_options='--really-quiet --sub-visibility=no --volume=12'
 mpvpaper_monitor='*'
+verbose=false
 
 usage() {
 	echo "Usage: $(basename "$0") [directories]"
 	echo
 	echo "Options:"
 	echo "  -h, --help                        Show usage page"
+	echo "  -v, --verbose                     Enable verbose output of script"
 	echo "  --enable-videos                   Enable videos (wayland only)"
 	echo "  --disable-videos                  Turn off video support"
 	echo "  --mpv-options       <options>     Options to pass to mpv through mpvpaper"
@@ -157,8 +159,8 @@ _hup_signal() {
 }
 
 TEMP=$(getopt \
-	--options 'h' \
-	--long 'help,enable-videos,disable-videos,mpv-options:,mpvpaper-monitor:,sleep-interval:' \
+	--options 'h,v' \
+	--long 'help,verbose,enable-videos,disable-videos,mpv-options:,mpvpaper-monitor:,sleep-interval:' \
 	--name "$(basename "$0")" -- "$@")
 
 if [ $? -ne 0 ]
@@ -176,6 +178,11 @@ do
 	case "$1" in
 		-h | --help)
 			usage
+			;;
+		-v | --verbose)
+			verbose=true
+			shift
+			continue
 			;;
 		--enable-videos)
 			[ "$XDG_SESSION_TYPE" = wayland ] && ENABLE_VIDEOS=true
@@ -214,6 +221,7 @@ do
 	esac
 done
 
+# shellcheck disable=SC2124
 [ "$#" = 0 ] \
 	&& DIRS="$(xdg-user-dir PICTURES)/Wallpapers $(xdg-user-dir VIDEOS)" \
 	|| DIRS="$@"
@@ -233,6 +241,8 @@ debug-message INFO "mpv-options      = $mpv_options"
 debug-message INFO "mpvpaper_monitor = $mpvpaper_monitor"
 debug-message INFO "ENABLE_VIDEOS    = $ENABLE_VIDEOS"
 debug-message INFO "DIRS             = $DIRS"
+
+$verbose && set -x
 
 if [ "$XDG_SESSION_TYPE" = wayland ]
 then
