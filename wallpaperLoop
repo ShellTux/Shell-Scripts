@@ -237,7 +237,7 @@ debug-message INFO "DIRS             = $DIRS"
 if [ "$XDG_SESSION_TYPE" = wayland ]
 then
 	swww kill 2>/dev/null || true
-	swww-daemon --format xrgb
+	swww-daemon --format xrgb &
 fi
 
 wallpaper next
