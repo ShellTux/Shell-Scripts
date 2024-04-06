@@ -93,6 +93,12 @@ notify() {
 		'Wallpaper Update' "$(basename "$wallpaper")"
 }
 
+if ! pgrep "$DAEMON" >/dev/null 2>/dev/null
+then
+	printf 'Daemon "%s" is not running!\n' "$DAEMON"
+	exit 1
+fi
+
 [ -f "$1" ] && change_wallpaper "$(realpath "$1")" && exit 0
 
 case "$1" in
