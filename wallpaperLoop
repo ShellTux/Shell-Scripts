@@ -158,11 +158,20 @@ _hup_signal() {
 	signal_sleep KILL
 }
 
+_sigterm_signal() {
+	echo Exiting Wallpaper Loop...
+	quit=true
+	set -xe
+	swww kill 2>/dev/null || true
+	[ -n "$SLEEP_PID" ] && kill "$SLEEP_PID"
+}
+
 TEMP=$(getopt \
 	--options 'h,v' \
 	--long 'help,verbose,enable-videos,disable-videos,mpv-options:,mpvpaper-monitor:,sleep-interval:' \
 	--name "$(basename "$0")" -- "$@")
 
+# shellcheck disable=SC2181
 if [ $? -ne 0 ]
 then
 	echo 'Terminating...' >&2
@@ -227,6 +236,7 @@ done
 	|| DIRS="$@"
 
 trap _hup_signal HUP
+trap _sigterm_signal TERM
 # TODO: add signal to toggle ENABLE_VIDEOS
 
 if [ "$(pgrep "$(basename "$0")" | wc --lines)" -gt 2 ]
@@ -252,8 +262,10 @@ fi
 
 wallpaper next
 
+quit=false
 while true
 do
+	"$quit" && exit 1
 	update_wallpaper
 	sleep 1
 done
