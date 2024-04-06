@@ -96,7 +96,8 @@ notify() {
 [ -f "$1" ] && change_wallpaper "$(realpath "$1")" && exit 0
 
 case "$1" in
-	next) change_wallpaper "$(get_random_wallpaper)" ;;
+	next)        change_wallpaper "$(get_random_wallpaper)" ;;
 	reset-timer) kill -HUP "$DAEMON_PID" ;;
+	kill)        kill -TERM "$DAEMON_PID" ;;
 	'' | notification) notify ;;
 esac
