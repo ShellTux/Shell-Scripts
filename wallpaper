@@ -1,6 +1,38 @@
 #!/bin/sh
 set -e
 
+commands="\
+next
+reset
+notification\
+"
+
+usage() {
+	echo "Usage: $(basename "$0") <subcommand>"
+	echo
+	echo "Options:"
+	echo "  -h, --help                        Show usage page"
+	echo
+	echo "Available Subcommands:"
+	echo "$commands" | sed 's|^|- |'
+	echo
+	echo "You just need to provide the prefix"
+	echo "that unambiguously identifies the subcommand"
+	echo
+	echo "Examples:"
+	echo "$(basename "$0") ne"
+	echo "$(basename "$0") no"
+	echo "$(basename "$0") r"
+	echo "$(basename "$0") k"
+	exit 2
+}
+
+for arg
+do
+	[ "$arg" = -h ] && usage
+	[ "$arg" = --help ] && usage
+done
+
 WALLPAPERS_HOME_DIR="${WALLPAPERS_HOME_DIR:-$HOME/Wallpapers/}"
 WALLPAPERS_IMAGES_DIR="${WALLPAPERS_IMAGES_DIR:-$WALLPAPERS_HOME_DIR/Images}"
 WALLPAPERS_VIDEOS_DIR="${WALLPAPERS_VIDEOS_DIR:-$WALLPAPERS_HOME_DIR/Videos}"
@@ -101,9 +133,34 @@ fi
 
 [ -f "$1" ] && change_wallpaper "$(realpath "$1")" && exit 0
 
-case "$1" in
-	next)        change_wallpaper "$(get_random_wallpaper)" ;;
-	reset-timer) kill -HUP "$DAEMON_PID" ;;
-	kill)        kill -TERM "$DAEMON_PID" ;;
-	'' | notification) notify ;;
+next() {
+	change_wallpaper "$(get_random_wallpaper)"
+}
+
+reset() {
+	kill -HUP "$DAEMON_PID"
+}
+
+notification() {
+	notify
+}
+
+if [ -z "$1" ]
+then
+	echo notification
+	exit 0
+fi
+
+case "$(echo "$commands" | grep --count '^'"$1" || true)" in
+	0)
+		echo No command found...
+		usage
+		;;
+	1)
+		eval "$(echo "$commands" | grep '^'"$1")"
+		;;
+	*)
+		echo Ambiguous Subcommand, found:
+		echo "$commands" | grep '^'"$1" | sed 's|^|- |'
+		;;
 esac
