@@ -1,0 +1,9 @@
+#!/bin/sh
+
+cd "$(dirname "$0")" || exit 1
+
+for submodule in $(git submodule | cut --delimiter=' ' --fields=3)
+do
+	echo "$(pwd)/$submodule/bin"
+done
+pwd
